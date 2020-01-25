@@ -1,0 +1,292 @@
+---
+title: "Kaggle Survey Overview"
+author: "Kumar Suresh Halake"
+output: html_notebook
+---
+
+```{r,include=FALSE,echo=FALSE,warning=FALSE,error=FALSE}
+library(ggplot2)
+library(tm)
+library(wordcloud)
+library(gridExtra)
+library(plyr)
+library(dplyr)
+library(reader)
+library(xlsx)
+library(reshape2)
+```
+
+
+### Loading datasets
+```{r,error=FALSE,eval=TRUE,echo=TRUE,include=TRUE}
+fr<-read.csv("./freeformResponses.csv",na.strings =c(NA,""),stringsAsFactors = FALSE)
+mcq <- read.csv("./multipleChoiceResponses.csv",na.strings =c(NA,""),stringsAsFactors = FALSE)
+schema<-read.csv("./schema.csv",na.strings =c(NA,""),stringsAsFactors = FALSE)
+```
+
+### Participation in Survey - Countrywise 
+
+* [Displayed countries having at least 100 respondents]
+
+```{r}
+mcq%>%group_by(Country,GenderSelect)%>%tally()%>%filter(n>=100 & !is.na(n))%>%ggplot(aes(reorder(Country,n),n))+
+  geom_bar(stat="identity",aes(fill=GenderSelect))+
+  theme(legend.position = "bottom")+labs(x="Country",y="Number of Respondents",face="itALICS")+
+  scale_y_discrete(expand=c(0,0)) +
+  coord_flip()
+```
+
+------
+
+### Age distribution of Participants
+```{r}
+mcq%>%select(Age,GenderSelect)%>%
+  mutate(age_group=cut(Age,breaks=c(0,5,10,20,30,40,50,60,70,80,90,100),closed = "right"))%>%
+  group_by(age_group,GenderSelect)%>%tally()%>%
+  ggplot(aes(age_group,n,fill=GenderSelect))+
+  geom_bar(stat="identity")+
+  scale_fill_discrete(labels=c("Different identity","Female","Male","Non-binary\ngenderqueer\ngender non conforming","Not specified"))+
+  theme(legend.key.height = unit(0.8,"cm"),axis.text.x = element_text(angle=45,hjust=1))+labs(x="Age Group",y="Frequency")
+```
+
+------
+
+### Employment Status and Choice of ML tool next year
+
+* [a group having at least 100 respondents are only included]
+
+```{r}
+mcq%>%group_by(MLToolNextYearSelect,EmploymentStatus)%>%
+  tally()%>%filter(n>=100,!is.na(MLToolNextYearSelect))%>%
+  ggplot(aes(reorder(MLToolNextYearSelect,n),n,fill=EmploymentStatus))+
+  geom_bar(stat="identity",width=0.9)+
+  coord_flip()+
+  scale_fill_brewer(labels=c("full tme","part time","prefer not to say","independent contractor/\nfreelancer/\nself employed","not employed/\nnot looking job","not employed/\nlooking job"),palette="Set1")+
+  theme(legend.key.height = unit(1,"cm"))+
+  scale_y_discrete(expand=c(0,0)) +
+  labs(x="Next year choice for ML Tool",y="Frequency")
+```
+
+------
+
+```{r}
+wordcloud(mcq$MLToolNextYearSelect,colors = rainbow(20))
+```
+
+
+
+### Employment Status and Choice of ML method next year
+* [Each group should have at least 100 respondents]
+```{r}
+mcq%>%group_by(MLMethodNextYearSelect,EmploymentStatus)%>%tally()%>%
+  filter(n>=100,!is.na(MLMethodNextYearSelect))%>%
+  ggplot(aes(reorder(MLMethodNextYearSelect,n),n,fill=EmploymentStatus))+geom_bar(stat="identity")+
+  coord_flip()+
+  scale_fill_brewer(labels=c("full tme","part time","prefer not to say","independent contractor/\nfreelancer/\nself employed","not employed &\nnot looking job","not employed\nlbut ooking job"),palette="Set1")+
+  scale_y_discrete(expand=c(0,0)) +
+  theme(legend.key.height = unit(1,"cm"))+labs(x="Next year choice for ML method ",y="Frequency")
+```
+
+------
+
+```{r}
+library(wordcloud)
+wordcloud(mcq$MLMethodNextYearSelect,colors = rainbow(10))
+```
+
+
+------
+
+
+### How many respondents are *Data Scientists* ?
+```{r}
+mcq%>%group_by(DataScienceIdentitySelect)%>%tally()%>%
+  ggplot(aes(reorder(DataScienceIdentitySelect,n),n,color=DataScienceIdentitySelect))+
+  geom_segment(aes(xend=DataScienceIdentitySelect,y=0,yend=n),size=3)+
+  geom_point(size=6,pch=19)+labs(title="Do you consider\nyourself a data scientist?",x="")+
+  theme(legend.position = "none")
+```
+
+------
+
+### Association between Undergrad Major subject and self confidence as a *Data Scientist*
+```{r}
+mcq%>%group_by(MajorSelect,DataScienceIdentitySelect)%>%tally%>%
+  filter(!is.na(MajorSelect),!is.na(DataScienceIdentitySelect))%>%
+  ggplot(aes(y=MajorSelect,x=DataScienceIdentitySelect,fill=n))+geom_tile()+
+  geom_text(aes(label=n),size=2)+
+  scale_fill_gradientn(colors=c(low = "white",mid="green",high = "red"))+
+  theme(axis.text.x = element_text(angle=90,hjust=1))+
+  scale_y_discrete(expand=c(0,0)) +
+  labs(x="Do you consider yourself a data scientist?",y="Undergraduate Major")
+```
+
+
+------
+
+### How Partcipants are Learning by various sources
+
+```{r}
+p1<-ggplot(mcq,aes(x=LearningCategoryKaggle))+geom_density()+ylim(0,0.06)+labs(x="Kaggle Learning")
+p2<-ggplot(mcq,aes(x=LearningCategoryOnlineCourses))+geom_density()+ylim(0,0.06)+labs(x="Online Course learning",y="")
+p3<-ggplot(mcq,aes(x=LearningCategoryWork))+geom_density()+ylim(0,0.06)+labs(x="Larning at work",y="")
+p4<-ggplot(mcq,aes(x=LearningCategoryUniversity))+geom_density()+ylim(0,0.06)+labs(x="University Learning")
+p5<-ggplot(mcq,aes(x=LearningCategorySelftTaught))+geom_density()+ylim(0,0.06)+labs(x="self Learning",y="")
+p6<-ggplot(mcq,aes(x=LearningCategoryOther))+geom_density()+ylim(0,0.06)+labs(x="Learning in other ways",y="")
+
+gridExtra::grid.arrange(p1,p2,p3,p4,p5,p6,ncol=3)
+```
+
+
+------
+
+### Current job title of Respondents
+```{r}
+wordcloud(mcq$CurrentJobTitleSelect,colors = rainbow(15))
+```
+
+------
+
+### Percentage Time spent for Data Gathering by a code writer
+
+```{r}
+mcq%>%filter(!is.na(TimeGatheringData))%>%
+  mutate(gather=cut(TimeGatheringData,breaks = c(-0.05,10,20,30,40,50,60,70,80,90,100),closed="right"))%>%
+  group_by(gather)%>%tally()%>%
+  ggplot(aes(x=gather,y=n))+
+  geom_bar(stat="identity",fill=rainbow(10))+labs(x="% Time",title="Percentage time spent on data gathering")+
+  scale_x_discrete(labels=paste0(c("0-10","10-20","20-30","30-40","40-50","50-60","60-70","70-80","80-00","90-100"),"%"))
+```
+
+------
+
+### Percentage Time spent for Data visualization by a code writer
+
+```{r}
+mcq%>%filter(!is.na(TimeVisualizing))%>%mutate(vizual=cut(TimeVisualizing,breaks = c(-0.05,10,20,30,40,50,60,70,80,90,100),closed="right"))%>%group_by(vizual)%>%tally()%>%
+  ggplot(aes(x=vizual,y=n))+geom_bar(stat="identity",fill=rainbow(10))+
+  labs(x="% Time",title="Percentage time spent on Vizualisation")+
+  scale_x_discrete(labels=paste0(c("0-10","10-20","20-30","30-40","40-50","50-60","60-70","70-80","80-00","90-100"),"%"))
+```
+
+------
+
+### Time spent for Model Building by a code writer
+
+```{r}
+library(RColorBrewer)
+mcq%>%filter(!is.na(TimeModelBuilding))%>%mutate(model=cut(TimeModelBuilding,breaks = c(-0.05,10,20,30,40,50,60,70,80,90,100),closed="right"))%>%group_by(model)%>%tally()%>%
+  ggplot(aes(x=model,y=n))+
+  geom_bar(stat="identity",fill=brewer.pal(name="Spectral",n=10))+
+  labs(x="% Time",title="Percentage time spent on Model Building")+
+  scale_x_discrete(labels=paste0(c("0-10","10-20","20-30","30-40","40-50","50-60","60-70","70-80","80-00","90-100"),"%"))
+```
+
+
+------
+
+### Time spent forgetting Insights from data by a code writer
+
+```{r}
+mcq%>%filter(!is.na(TimeFindingInsights))%>%mutate(insight=cut(TimeFindingInsights,breaks = c(-0.05,10,20,30,40,50,60,70,80,90,100),closed="right"))%>%group_by(insight)%>%tally()%>%
+  ggplot(aes(x=insight,y=n))+
+geom_bar(stat="identity",fill=brewer.pal(name="Paired",n=11))+
+  labs(x="% Time",title="Percentage time spent for getting Insight from data")+
+  scale_x_discrete(labels=paste0(c("0-10","10-20","20-30","30-40","40-50","50-60","60-70","70-80","80-00","90-100"),"%"))
+```
+
+------
+
+
+### The Change in Salary for different empoyements 
+
+```{r}
+mcq%>%filter(!is.na(SalaryChange))%>%group_by(SalaryChange)%>%tally()%>%
+  ggplot(aes(reorder(SalaryChange,n),n))+geom_bar(stat="identity",fill=rainbow(9),color="black")+
+  geom_text(aes(label=paste0(round(n*100/sum(n),2)," %")),size=3,hjust=0)+
+  labs(x="Increase / Decrease in Salary",title="Slary Change in Past 3 Years")+
+  scale_y_discrete(expand=c(0,0,0.15,0)) +
+  scale_x_discrete(expand=c(0,0)) +
+  coord_flip()
+```
+
+------
+
+### Job Satisfaction level of Employees
+
+```{r}
+mcq%>%filter(!is.na(JobSatisfaction))%>%
+  group_by(EmploymentStatus,JobSatisfaction)%>%tally()%>%
+  ggplot(aes(reorder(JobSatisfaction,n),n,fill=EmploymentStatus))+
+  geom_bar(stat="identity",position = "dodge")+
+  scale_fill_brewer(labels=c("full tme","part time","prefer not to say","independent contractor/\nfreelancer/\nself employed","not employed &\nnot looking job","not employed\nlbut ooking job"),palette="Dark2")+
+  theme(legend.key.height = unit(1,"cm"))+labs(x="Job Satisfaction Level",y="Frequency")+
+  scale_y_discrete(expand=c(0,0,0.1,0)) +
+  scale_x_discrete(expand=c(0,0)) +
+  coord_flip()
+```
+
+------
+
+### Most important way to prove the knowledge by learners
+
+```{r}
+mcq%>%filter(!is.na(ProveKnowledgeSelect))%>%
+  group_by(ProveKnowledgeSelect)%>%tally()%>%
+  ggplot(aes(reorder(ProveKnowledgeSelect,n),y=n))+geom_bar(stat="identity",fill=rainbow(7))+
+  geom_text(aes(label=paste0(round(n*100/sum(n),2)," %")),hjust=0,size=3)+
+  scale_y_discrete(expand=c(0,0,0.1,0)) +
+  scale_x_discrete(expand=c(0,0)) +
+  labs(x="Way to prove the knowledge by learner")+
+  coord_flip()
+```
+
+
+### Influence of learning platform
+```{r}
+m<-mcq%>%select(starts_with("LearningPlatformUsefulness"))%>%melt(id=0)%>%filter(!is.na(value))
+
+m1<-m
+v<-c()
+for(i in 1: nrow(m)){
+  v[i]<-gsub(x=m$variable[i],pattern = "LearningPlatformUsefulness",replacement = "")
+}
+
+m1<-cbind(m1,v)
+
+m1%>%group_by(v,value)%>%tally()%>%ggplot(aes(reorder(v,n),value))+
+  geom_tile(aes(fill=n))+
+  geom_text(aes(label=n),size=2.5)+
+  scale_fill_gradient2(low="white",mid="cyan",high="purple")+
+  labs(x="Learning Platform",y="Usefullness",face="italics")+theme(panel.grid = element_blank())+
+  scale_y_discrete(expand=c(0,0,0.0,0)) +
+  # scale_x_discrete(expand=c(0,0,0)) +
+  coord_flip()
+
+```
+
+
+### Job skill Importance
+
+```{r}
+j<-mcq%>%select(starts_with("JobSkillImportance"))%>%melt(id=0)%>%filter(!is.na(value))
+
+j1<-j
+u<-c()
+for(i in 1: nrow(j)){
+  u[i]<-gsub(x=j1$variable[i],pattern = "JobSkillImportance",replacement = "")
+}
+
+j1<-cbind(j1,u)
+
+j1%>%group_by(u,value)%>%tally()%>%ggplot(aes(reorder(u,n),value))+
+  geom_tile(aes(fill=n))+
+  geom_text(aes(label=n),size=2.5)+
+  scale_fill_gradient2(low="white",mid="cyan",high="purple")+
+  labs(x="Job Skills Importance",y="Usefullness",face="italics",hjust=1)+theme(panel.grid = element_blank())+
+  scale_y_discrete(expand=c(0,0,0.1,0)) +
+  # scale_x_discrete(expand=c(0,0)) +
+  coord_flip()
+
+```
+
